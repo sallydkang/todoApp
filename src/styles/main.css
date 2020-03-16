@@ -110,3 +110,8 @@ body {
 .task__remove:hover {
   color: #111;
 }
+
+.task__date {
+  font-size: 12px;
+  float: right;
+}

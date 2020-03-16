@@ -1,66 +1,104 @@
 import React from 'react';
 
-import TaskForm from './Form'
-import TaskList from './List'
-import { TaskProperties } from '../types'
-import '../styles/main.css'
+import TaskForm from './Form';
+import TaskList from './List';
+import '../styles/main.css';
+import { TaskProperties } from './Task';
 
 const TaskListApp = () => {
   
-  const [tasks, setTasks] = React.useState<TaskProperties[]>([]);
+  const [tasks, setTasks] = React.useState<TaskProperties[]>( [] );
   
-  // Creating new todo item
-  function taskCreate(task: TaskProperties) {
-    // Prepare new todos state
+  const sortByOldestDate = ( tasks: TaskProperties[] ) => {
+    return [...tasks].sort( ( a, b ) => {
+      return new Date( a.date ).getTime() - new Date( b.date ).getTime();
+    } );
+  };
+  
+  const saveToLocalStorage = ( tasks: TaskProperties[] ) => {
+    const sortedTasks = sortByOldestDate( tasks );
+    localStorage.setItem( 'myCurrentTasks', JSON.stringify( sortedTasks ) );
+  };
+  
+  const removeFromLocalStorage = ( id: string ) => {
+    const localTasks = JSON.parse( localStorage.getItem( 'myCurrentTasks' ) );
+    const newLocalTasks = localTasks.filter( ( task: TaskProperties ) => task.id !== id );
+    const sortedTasks = sortByOldestDate( newLocalTasks );
+    localStorage.removeItem( 'myCurrentTasks' );
+    localStorage.setItem( 'myCurrentTasks', JSON.stringify( sortedTasks ) );
+  };
+  
+  const taskCreate = ( task: TaskProperties ) => {
+    // Get all existing tasks
     const newTasksState: TaskProperties[] = [...tasks];
-    // Update new todos state
-    newTasksState.push(task);
-    // Update todos state
-    setTasks(newTasksState)
-  }
+    // Add new task into existing task array
+    newTasksState.push( task );
+    setTasks( newTasksState );
+    saveToLocalStorage( newTasksState );
+  };
   
-  // Update existing todo item
-  function taskUpdate(event: React.ChangeEvent<HTMLInputElement>, id: string) {
-    // Prepare new todos state
+  const taskSort = ( event: React.ChangeEvent<HTMLSelectElement> ) => {
+    const sortType = event.target.value;
+    const newTasksState = sortByOldestDate( [...tasks] );
+    if( sortType === 'oldest' ){
+      setTasks( newTasksState );
+    }
+    if( sortType === 'newest' ){
+      setTasks( newTasksState.reverse() );
+    }
+  };
+  
+  const taskUpdate = ( event: React.ChangeEvent<HTMLInputElement>, id: string ) => {
     const newTasksState: TaskProperties[] = [...tasks];
-    // Find correct todo item to update
-    newTasksState.find((task: TaskProperties) => task.id === id)!.title = event.target.value;
-    // Update todos state
-    setTasks(newTasksState)
-  }
+    const sectionEdited = event.target.name.toString();
+    const currentItem = newTasksState.find( ( task: TaskProperties ) => task.id === id );
+    // @ts-ignore
+    currentItem[sectionEdited] = event.target.value;
+    setTasks( newTasksState );
+    removeFromLocalStorage( id );
+    saveToLocalStorage( newTasksState );
+  };
   
-  // Remove existing todo item
-  function taskRemove(id: string) {
-    // Prepare new todos state
-    const newTasksState: TaskProperties[] = tasks.filter((task: TaskProperties) => task.id !== id);
-    // Update todos state
-    setTasks(newTasksState)
-  }
+  const taskRemove = ( id: string ) => {
+    // Filter out selected id
+    const newTasksState: TaskProperties[] = tasks.filter( ( task: TaskProperties ) => task.id !== id );
+    setTasks( newTasksState );
+    removeFromLocalStorage( id );
+  };
   
-  // Check existing todo item as completed
-  function taskComplete(id: string) {
-    // Copy current todos state
+  const taskComplete = ( id: string ) => {
     const newTasksState: TaskProperties[] = [...tasks];
-    // Find the correct todo item and update its 'isCompleted' key
-    newTasksState.find((task: TaskProperties) => task.id === id)!.completed = !newTasksState.find((task: TaskProperties) => task.id === id)!.completed;
-    // Update todos state
-    setTasks(newTasksState)
-  }
+    const selectedTask = newTasksState.find( ( task: TaskProperties ) => task.id === id );
+    selectedTask.completed = !selectedTask.completed;
+    setTasks( newTasksState );
+    removeFromLocalStorage( id );
+    saveToLocalStorage( newTasksState );
+  };
   
-  // Check if todo item has title
-  function taskBlur(event: React.ChangeEvent<HTMLInputElement>) {
-    if (event.target.value.length === 0) {
-      event.target.classList.add('-error')
-    } else {
-      event.target.classList.remove('-error')
+  function taskBlur( event: React.ChangeEvent<HTMLInputElement> ){
+    if( event.target.value.length === 0 ){
+      event.target.classList.add( '-error' );
+    }
+    else{
+      event.target.classList.remove( '-error' );
     }
   }
+  
+  // Load from local storage
+  window.addEventListener( 'load', function(){
+    const localTasks = localStorage.getItem( 'myCurrentTasks' );
+    if( localTasks ){
+      const savedTasksState: TaskProperties[] = JSON.parse( localTasks );
+      setTasks( sortByOldestDate( savedTasksState ) );
+    }
+  } );
   
   return (
       <div className="task__app">
         <TaskForm
             tasks={tasks}
             taskCreate={taskCreate}
+            taskSort={taskSort}
         />
         <TaskList
             tasks={tasks}
@@ -70,7 +108,7 @@ const TaskListApp = () => {
             taskBlur={taskBlur}
         />
       </div>
-  )
+  );
 };
 
-export default TaskListApp
+export default TaskListApp;
